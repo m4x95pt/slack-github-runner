@@ -1,1 +1,1 @@
-# -slack-github-runner
+# slack-github-runner
