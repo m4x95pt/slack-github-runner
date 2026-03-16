@@ -124,10 +124,11 @@ export default {
     const rawBody = await request.text();
 
     // Verificar assinatura Slack
-    const valid = await verifySlackSignature(request, rawBody, env.SLACK_SIGNING_SECRET);
-    if (!valid) {
-      return new Response("Unauthorized", { status: 401 });
-    }
+   // Verificar assinatura Slack
+const valid = await verifySlackSignature(request, rawBody, env.SLACK_SIGNING_SECRET);
+if (!valid) {
+  return new Response("Unauthorized", { status: 401 });
+}
 
     // Parsear o body (application/x-www-form-urlencoded)
     const params = new URLSearchParams(rawBody);
