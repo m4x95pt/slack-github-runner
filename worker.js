@@ -116,7 +116,7 @@ function helpMessage() {
 
 // ─── Handler principal ────────────────────────────────────────────────────────
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method !== "POST") {
       return new Response("Method Not Allowed", { status: 405 });
     }
@@ -148,37 +148,38 @@ export default {
       });
     }
 
-    // Resposta imediata ao Slack (< 3s obrigatório)
-    // Trigger async em background
-    const ctx = { waitUntil: (p) => p }; // fallback
-    const triggerPromise = triggerWorkflow(
-      workflow.repo,
-      workflow.workflow,
-      workflow.inputs || {},
-      env
-    ).then(async (status) => {
-      // Enviar resultado para o response_url do Slack
-      const msg =
-        status === 204
-          ? `✅ *${workflow.description}* iniciado!\n_Verifica o canal em breve para o resultado._`
-          : `❌ Erro ao iniciar *${workflow.description}* (HTTP ${status})\n_Verifica o GitHub Actions._`;
+    // ctx.waitUntil garante que o Worker não termina antes de enviar o resultado ao Slack
+    ctx.waitUntil(
+      triggerWorkflow(workflow.repo, workflow.workflow, workflow.inputs || {}, env)
+        .then(async (status) => {
+          const msg =
+            status === 204
+              ? `✅ *${workflow.description}* iniciado com sucesso!\n_Verifica o canal em breve para o resultado._`
+              : `❌ Erro ao iniciar *${workflow.description}* (HTTP ${status})\n_Verifica o GitHub Actions._`;
 
-      if (responseUrl) {
-        await fetch(responseUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ response_type: "in_channel", text: msg }),
-        });
-      }
-    });
+          if (responseUrl) {
+            await fetch(responseUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ response_type: "in_channel", text: msg }),
+            });
+          }
+        })
+        .catch(async (err) => {
+          if (responseUrl) {
+            await fetch(responseUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                response_type: "ephemeral",
+                text: `❌ Erro inesperado: ${err.message}`,
+              }),
+            });
+          }
+        })
+    );
 
-    // Usar waitUntil se disponível (Cloudflare Workers context)
-    if (env && typeof env === "object") {
-      // O context real vem como 3º argumento, mas guardamos a promise
-      triggerPromise.catch(console.error);
-    }
-
-    // Resposta imediata
+    // Resposta imediata ao Slack (obrigatório < 3s)
     return Response.json({
       response_type: "ephemeral",
       text: `⏳ A iniciar *${workflow.description}*...`,
