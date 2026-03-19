@@ -1,105 +1,89 @@
 # slack-github-runner
 
-Cloudflare Worker que recebe slash commands do Slack e faz trigger de GitHub Actions workflows via API. Sem servidor, sem custos — corre no plano gratuito do Cloudflare.
+## Overview
 
-## Comandos disponíveis
+**slack-github-runner** is a JavaScript solution connecting GitHub Actions workflows to Slack, allowing teams and individuals to trigger builds, tests, and deployments from Slack—and receive detailed status notifications.
 
-| Comando | Workflow | Repo |
-|---------|----------|------|
-| `/run jobs` | job-scanner.yml | work-search |
-| `/run strava` | sync.yml | Sync-Strava |
-| `/run infostu` | sync-gmail-notion.yml | Infoestudante-Sync |
-| `/run daily` | slack-notify.yml (daily) | Infoestudante-Sync |
-| `/run weekly` | slack-notify.yml (weekly) | Infoestudante-Sync |
-| `/run deadline` | slack-notify.yml (deadline) | Infoestudante-Sync |
-| `/run help` | — | lista de comandos |
+## Features
 
-## Como funciona
+- **Slack Slash Commands:** Start any GitHub workflow by typing commands in Slack.
+- **Workflow Monitoring:** Automatic Slack messages for workflow status (queued, running, completed, failed).
+- **Custom Alerts:** Notify specific channels/DMs about build results.
+- **Multiple Repository Support:** Configure runners for all your GitHub projects from a single Slack workspace.
+- **Secure Authentication:** Use GitHub PATs and Slack app tokens for secure operations.
+- **Interactive Controls:** Cancel or retry workflows straight from Slack.
 
-1. Escreves `/run jobs` no Slack
-2. O Slack envia um POST para o Cloudflare Worker
-3. O Worker valida a assinatura HMAC-SHA256 do Slack
-4. O Worker chama a GitHub API para fazer trigger do workflow
-5. Recebes `⏳ A iniciar...` imediatamente no Slack
-6. Quando o workflow termina, o resultado chega ao canal via webhook
+## Getting Started
 
-## Setup
+1. **Clone the repository**
 
-### 1. Instalar Node.js e Wrangler
+   ```bash
+   git clone https://github.com/m4x95pt/slack-github-runner
+   cd slack-github-runner
+   ```
 
-Vai a [nodejs.org](https://nodejs.org) e instala a versão **LTS**. Depois:
+2. **Install dependencies**
 
-```bash
-npm install -g wrangler
-wrangler login
+   ```bash
+   npm install
+   ```
+
+3. **Setup Slack App**
+   - Create a Slack app ([Slack API documentation](https://api.slack.com/apps)).
+   - Add `/github-run`, `/github-status` commands.
+   - Set up bot permissions for channels and user DMs.
+
+4. **Configure GitHub**
+   - Create a Personal Access Token (PAT) for API calls.
+   - Grant permission to trigger workflows and read status.
+
+5. **Configuration**
+   - Edit `config.js` or use `.env` for:
+     - Slack bot token
+     - Slack signing secret
+     - GitHub PAT
+     - Repositories and allowed workflows
+
+6. **Running the App**
+   - Start the server (Express.js or similar):
+     ```bash
+     npm start
+     ```
+   - Deploy to cloud (Heroku, AWS, Vercel, etc) or run locally.
+
+## Usage
+
+- In Slack, type:
+  ```
+  /github-run [repo] [workflow]
+  ```
+  To trigger the workflow in GitHub.
+- Receive live status updates:
+  ```
+  /github-status [repo] [run_id]
+  ```
+  To check build/test status.
+
+## Project Structure
+
+```
+slack-github-runner/
+├── index.js          # Express server entry point
+├── slack.js          # Slack command handlers
+├── github.js         # GitHub workflow API integration
+├── config.js         # Configuration file/environment
+├── package.json      # Dependencies
+├── README.md
 ```
 
-### 2. Deploy
+## Advanced
 
-```bash
-git clone https://github.com/m4x95pt/slack-github-runner
-cd slack-github-runner
-wrangler deploy
-```
+- Customize notification templates in Slack.
+- Whitelist/blacklist certain workflows or allow only admins to trigger.
+- Integrate with other CI/CD tools for expanded Slack DevOps functionality.
 
-Guarda o URL que aparece no final:
-```
-https://slack-github-runner.m4x95pt.workers.dev
-```
+## License
 
-### 3. Adicionar os secrets
+MIT License
 
-> ⚠️ Usa sempre `wrangler secret put` — secrets adicionados pelo dashboard do Cloudflare são apagados a cada deploy.
-
-```bash
-wrangler secret put GITHUB_USERNAME
-# valor: m4x95pt
-
-wrangler secret put GITHUB_TOKEN
-# Fine-grained PAT com Actions: Read and Write em todos os repos
-
-wrangler secret put SLACK_SIGNING_SECRET
-# Basic Information do teu Slack App
-```
-
-**Para criar o GitHub Token:**
-1. Vai a [github.com/settings/tokens](https://github.com/settings/tokens) → **Fine-grained tokens** → **Generate new token**
-2. **Repository access** → All repositories
-3. **Permissions** → **Actions** → **Read and Write**
-
-### 4. Criar o Slack App
-
-1. Vai a [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch**
-2. **Basic Information** → copia o **Signing Secret** (para o `wrangler secret put SLACK_SIGNING_SECRET`)
-3. **Slash Commands** → **Create New Command**:
-   - Command: `/run`
-   - Request URL: `https://slack-github-runner.m4x95pt.workers.dev`
-   - Usage hint: `jobs | strava | infostu | daily | weekly | deadline | help`
-4. **Install App** → **Install to Workspace** → **Allow**
-
-## Adicionar novos comandos
-
-Edita o objeto `WORKFLOWS` no `worker.js`:
-
-```javascript
-meucomando: {
-  repo: "nome-do-repo",
-  workflow: "ficheiro.yml",
-  description: "Descrição para o Slack",
-  inputs: { chave: "valor" }, // opcional
-},
-```
-
-Depois faz deploy novamente:
-
-```bash
-wrangler deploy
-```
-
-## Secrets necessários
-
-| Secret | Descrição |
-|--------|-----------|
-| `GITHUB_USERNAME` | Username do GitHub (ex: `m4x95pt`) |
-| `GITHUB_TOKEN` | Fine-grained PAT com Actions: Read and Write |
-| `SLACK_SIGNING_SECRET` | Signing Secret do Slack App |
+**Author:** [@m4x95pt](https://github.com/m4x95pt)
